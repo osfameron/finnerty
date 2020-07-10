@@ -16,7 +16,7 @@ import Data.Array (many)
 import Data.String.CodeUnits (fromCharArray)
 import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser, runParser)
-import Text.Parsing.StringParser.CodeUnits (string, eof, anyChar)
+import Text.Parsing.StringParser.CodeUnits (string, eof, anyChar, regex)
 
 import Data.Generic.Rep
 import Data.Generic.Rep.Show
@@ -26,7 +26,8 @@ main = launchAff_ do
           result <- S.spawn { args: [], cmd: "ls", stdin: Nothing }  CP.defaultSpawnOptions
           Console.log result.stdout
 
-data Line = Plus String
+data Line = Same String
+          | Plus String
           | Minus String
           | NewLine
 derive instance genericLine :: Generic Line _
@@ -34,16 +35,17 @@ instance showLine :: Show Line where
   show = genericShow
 
 line :: Parser Line
-line = plusOrMinus "+" Plus
-       <|> plusOrMinus "-" Minus
-       <|> newline
+line = line' " " Same
+   <|> line' "+" Plus
+   <|> line' "-" Minus
+   <|> newline
 
-plusOrMinus :: String -> (String -> Line) -> Parser Line
-plusOrMinus s a = do
+line' :: String -> (String -> Line) -> Parser Line
+line' s a = do
   _ <- string s
-  l <- many anyChar
+  l <- regex "[^\n]+"
   _ <- eof
-  pure $ a (fromCharArray l)
+  pure $ a l
 
 newline :: Parser Line
 newline = do
