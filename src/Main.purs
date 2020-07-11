@@ -16,7 +16,8 @@ import Data.Array (many)
 import Data.String.CodeUnits (fromCharArray)
 import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser, runParser)
-import Text.Parsing.StringParser.CodeUnits (string, eof, anyChar, regex)
+import Text.Parsing.StringParser.Combinators (optional, sepEndBy, manyTill)
+import Text.Parsing.StringParser.CodeUnits (string, eof, char, anyChar, regex)
 
 import Data.Generic.Rep
 import Data.Generic.Rep.Show
@@ -26,31 +27,62 @@ main = launchAff_ do
           result <- S.spawn { args: [], cmd: "ls", stdin: Nothing }  CP.defaultSpawnOptions
           Console.log result.stdout
 
-data Line = Same String
+data Segment = Same String
           | Plus String
           | Minus String
-          | NewLine
+derive instance genericSegment :: Generic Segment _
+instance showSegment :: Show Segment where
+  show = genericShow
+
+data Line = Insert String
+          | Delete String
+          | Modify (Array Segment)
 derive instance genericLine :: Generic Line _
 instance showLine :: Show Line where
   show = genericShow
 
-line :: Parser Line
-line = line' " " Same
-   <|> line' "+" Plus
-   <|> line' "-" Minus
-   <|> newline
+segment :: Parser Segment
+segment = segment' " " Same
+      <|> segment' "+" Plus
+      <|> segment' "-" Minus
 
-line' :: String -> (String -> Line) -> Parser Line
-line' s a = do
+segment' :: String -> (String -> Segment) -> Parser Segment
+segment' s a = do
   _ <- string s
-  l <- regex "[^\n]+"
-  _ <- eof
-  pure $ a l
+  s <- regex "[^\n]+"
+  pure $ a s
 
-newline :: Parser Line
-newline = do
-  _ <- string "~"
-  _ <- eof
-  pure $ NewLine
+segmentNL = do
+  s <- segment
+  _ <- nl
+  pure s
 
-parseLine = runParser line
+nl :: Parser Unit
+nl = void $ char '\n'
+
+newSegment :: Parser Unit
+newSegment = void $ string "~\n"
+
+line = do
+  ss <- many segmentNL
+  case ss of
+    [Plus s] -> pure $ Insert s
+    [] -> pure $ Insert ""
+    [Minus s] -> pure $ Delete s
+    otherwise -> pure $ Modify ss
+
+whole = sepEndBy line newSegment
+
+main2 = runParser whole src
+
+src = """ Segment' s a = do
+~
+-_ <- string s
+~
+ _ <- 
+-eof
++optional nl
+~
+~
++pure $ a l
+~"""
