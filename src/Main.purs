@@ -3,7 +3,7 @@ module Main where
 import Prelude
 import Node.ChildProcess as CP
 import Sunde as S
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromJust)
 
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class.Console as Console
@@ -15,9 +15,12 @@ import Effect.Console (log)
 import Data.Array (many)
 import Data.String.CodeUnits (fromCharArray)
 import Control.Alt ((<|>))
-import Text.Parsing.StringParser (Parser, runParser)
-import Text.Parsing.StringParser.Combinators (optional, sepEndBy, manyTill)
+import Text.Parsing.StringParser (Parser, runParser, try)
+import Text.Parsing.StringParser.Combinators (optional, sepEndBy, manyTill, (<?>))
 import Text.Parsing.StringParser.CodeUnits (string, eof, char, anyChar, regex)
+
+import Data.Int as I
+import Partial.Unsafe (unsafePartial)
 
 import Data.Generic.Rep
 import Data.Generic.Rep.Show
@@ -62,6 +65,26 @@ nl = void $ char '\n'
 
 newSegment :: Parser Unit
 newSegment = void $ string "~\n"
+
+toInt :: String -> Int
+toInt s = unsafePartial $ fromJust $ I.fromString s
+
+int :: Parser Int
+int = toInt <$> regex "[1-9][0-9]*"
+        <?> "Not an integer"
+
+intpair = int2 <|> int1
+
+int1 = do
+  s <- int
+  pure $ { start: s, count: 1 }
+
+int2 = try do
+  s <- int
+  _ <- string ","
+  c <- int
+  pure $ { start: s, count: c }
+
 
 line = do
   ss <- many segmentNL
