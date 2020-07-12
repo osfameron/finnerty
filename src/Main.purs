@@ -13,10 +13,13 @@ import Effect.Console (log)
 
 -- import Text.Parsing.StringParser.Combinators (many)
 import Data.Array (many)
+import Data.List (List(..), (:))
+import Data.List.Types (NonEmptyList(..))
+import Data.NonEmpty (head, tail)
 import Data.String.CodeUnits (fromCharArray)
 import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser, runParser, try)
-import Text.Parsing.StringParser.Combinators (optional, sepEndBy, manyTill, (<?>))
+import Text.Parsing.StringParser.Combinators (optional, sepEndBy, sepBy1, manyTill, option, (<?>))
 import Text.Parsing.StringParser.CodeUnits (string, eof, char, anyChar, regex)
 
 import Data.Int as I
@@ -73,18 +76,13 @@ int :: Parser Int
 int = toInt <$> regex "[1-9][0-9]*"
         <?> "Not an integer"
 
-intpair = int2 <|> int1
-
-int1 = do
-  s <- int
-  pure $ { start: s, count: 1 }
-
-int2 = try do
-  s <- int
-  _ <- string ","
-  c <- int
-  pure $ { start: s, count: c }
-
+intpair = do
+  (NonEmptyList ints) <- sepBy1 int (char ',')
+  let s = head ints
+  let c = case tail ints of
+            Nil -> 1
+            (c:_) -> c
+  pure {start: s, count: c}
 
 line = do
   ss <- many segmentNL
