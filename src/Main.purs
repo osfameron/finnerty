@@ -10,7 +10,7 @@ import Effect (Effect)
 -- import Text.Parsing.StringParser.Combinators (many)
 import Data.Array (many)
 import Data.Either (Either)
-import Data.List (List(..), (:))
+import Data.List (List(..), (:), reverse)
 import Data.List.Types (NonEmptyList(..))
 import Data.NonEmpty (head, tail)
 import Control.Alt ((<|>))
@@ -21,6 +21,7 @@ import Data.Int as I
 import Partial.Unsafe (unsafePartial)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
+import Data.Tuple (Tuple(..))
 
 main :: Effect Unit
 main =
@@ -117,18 +118,19 @@ line = do
 hunkBody :: Parser (List Line)
 hunkBody = sepEndBy line newSegment
 
+type Hunk = { header :: { from :: CountStart, to :: CountStart }, body :: List Line }
+
+hunk :: Parser Hunk
 hunk = do
   h <- hunkHeader
   b <- hunkBody
   pure { header: h, body: b }
 
 diffHeader = do
-  _ <- string "--- "
-  _ <- regex ".*"
-  _ <- nl
-  _ <- string "+++ "
-  _ <- regex ".*"
-  _ <- nl
+  _ <- regex "diff .*\n"
+  _ <- regex "index .*\n"
+  _ <- regex "--- .*\n"
+  _ <- regex "[+]{3} .*\n"
   pure unit
 
 whole = do
@@ -139,9 +141,30 @@ whole = do
 -- testParse :: Either ParseError (List Line)
 testParse = runParser whole src
 
+splitAt :: forall a. Int -> List a -> Tuple (List a) (List a)
+splitAt = splitAt' Nil
+  where splitAt' xs 0 ys = Tuple (reverse xs) ys
+        splitAt' xs _ Nil = Tuple (reverse xs) Nil
+        splitAt' xs n (y: ys) = splitAt' (y:xs) (n - 1) ys
+
+applyHunks :: forall a b. (a -> b) -> (Line -> b) -> List a -> List Hunk -> List b
+-- applyHunks contextFunc focusFunc src hunks
+applyHunks = applyHunks' 1
+  where
+    applyHunks' _ cf _ xs Nil = map cf xs
+    applyHunks' pos cf ff xs (h:hs) =
+      let
+        start = h.header.from.start
+        count = h.header.from.count
+        Tuple cs rest = splitAt (start - pos) xs
+        Tuple _ rest' = splitAt count rest
+      in (map cf cs) <> (map ff h.body) <> applyHunks' (pos + start + count) cf ff rest' hs
+
 src :: String
 src =
-  """--- a/src/Main.purs
+  """diff --git a/src/Main.purs b/src/Main.purs
+index 3029fa9..632924f 100644
+--- a/src/Main.purs
 +++ b/src/Main.purs
 @@ -4,12 +4,9 @@ hunk the first
  Same
