@@ -9,7 +9,7 @@ import Effect.Class.Console as Console
 import Effect (Effect)
 -- import Text.Parsing.StringParser.Combinators (many)
 import Data.Array (many)
-import Data.Either (Either)
+import Data.Either (Either, Either(..))
 import Data.List (List(..), (:), reverse)
 import Data.List.Types (NonEmptyList(..))
 import Data.NonEmpty (head, tail)
@@ -24,10 +24,33 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Tuple (Tuple(..))
 
 main :: Effect Unit
-main =
-  launchAff_ do
-    result <- S.spawn { args: [], cmd: "ls", stdin: Nothing } CP.defaultSpawnOptions
-    Console.log result.stdout
+main = do
+    let
+      commit = "b733e3ba660854386b481966948cc2dd61183f2c"
+      file = "src/Main.purs"
+    d <- launchAff_ $ diff commit file
+    Console.log $ show d
+
+-- diff :: String -> String -> Effect Unit
+diff commit file =  do
+  result <- S.spawn
+    { cmd: "git"
+    , args:
+      ["diff"
+      ,"-U0"
+      ,"--function-context"
+      ,"--word-diff=porcelain"
+      ,"--word-diff-regex=\"(\\\\w+|.)\"]"
+      ,commit
+      ,file]
+    , stdin: Nothing }
+    CP.defaultSpawnOptions
+  let
+    d = case result.exit of
+      CP.Normally 0 -> Right $ runParser whole result.stdout
+      otherwise -> Left result.stderr
+  _ <- Console.log $ show d
+  pure d
 
 data Segment
   = Same String
@@ -152,18 +175,22 @@ splitAt = splitAt' Nil
         splitAt' xs _ Nil = Tuple (reverse xs) Nil
         splitAt' xs n (y: ys) = splitAt' (y:xs) (n - 1) ys
 
-applyHunks :: forall a b. (a -> b) -> (Line -> b) -> List a -> List Hunk -> List b
--- applyHunks contextFunc focusFunc src hunks
+data Output
+  = Context String
+  | Focus Line  
+
+applyHunks :: forall a b. List String -> List Hunk -> List Output
+-- applyHunks src hunks
 applyHunks = applyHunks' 1
   where
-    applyHunks' _ cf _ xs Nil = map cf xs
-    applyHunks' pos cf ff xs (h:hs) =
+    applyHunks' _ xs Nil = map Context xs
+    applyHunks' pos xs (h:hs) =
       let
         start = h.header.from.start
         count = h.header.from.count
         Tuple cs rest = splitAt (start - pos) xs
         Tuple _ rest' = splitAt count rest
-      in (map cf cs) <> (map ff h.body) <> applyHunks' (pos + start + count) cf ff rest' hs
+      in (map Context cs) <> (map Focus h.body) <> applyHunks' (pos + start + count)  rest' hs
 
 src :: String
 src =
