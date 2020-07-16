@@ -56,35 +56,40 @@ segment =
     <|> segment' "-" Minus
 
 segment' :: String -> (String -> Segment) -> Parser Segment
-segment' s a = do
-  _ <- string s
+segment' prefix a = do
+  skipString prefix
   s <- regex "[^\n]+"
+  skipNL
   pure $ a s
 
-segmentNL :: Parser Segment
-segmentNL = do
-  s <- segment
-  _ <- nl
-  pure s
+skip :: forall a. Parser a -> Parser Unit
+skip = void
 
-nl :: Parser Unit
-nl = void $ char '\n'
+skipNL :: Parser Unit
+skipNL = skip $ char '\n'
+
+skipString :: String -> Parser Unit
+skipString = skip <<< string
+
+skipRegex :: String -> Parser Unit
+skipRegex = skip <<< regex
+
 
 newSegment :: Parser Unit
-newSegment = void $ string "~\n"
+newSegment = skip $ string "~\n"
 
 type CountStart
   = { count :: Int, start :: Int }
 
 hunkHeader :: Parser { from :: CountStart, to :: CountStart }
 hunkHeader = do
-  _ <- string "@@ -"
+  skipString "@@ -"
   f <- intpair
-  _ <- string " +"
+  skipString " +"
   t <- intpair
-  _ <- string " @@"
-  _ <- regex ".*" -- comments
-  _ <- nl
+  skipString " @@"
+  skipRegex ".*" -- comments
+  skipNL
   pure { from: f, to: t }
 
 toInt :: String -> Int
@@ -108,7 +113,7 @@ intpair = do
 
 line :: Parser Line
 line = do
-  ss <- many segmentNL
+  ss <- many segment
   case ss of
     [ Plus s ] -> pure $ Insert s
     [] -> pure $ Insert ""
@@ -127,14 +132,14 @@ hunk = do
   pure { header: h, body: b }
 
 diffHeader = do
-  _ <- regex "diff .*\n"
-  _ <- regex "index .*\n"
-  _ <- regex "--- .*\n"
-  _ <- regex "[+]{3} .*\n"
+  skipRegex "diff .*\n"
+  skipRegex "index .*\n"
+  skipRegex "--- .*\n"
+  skipRegex "[+]{3} .*\n"
   pure unit
 
 whole = do
-  _ <- diffHeader
+  skip $ diffHeader
   h <- many hunk
   pure h
 
