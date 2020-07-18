@@ -9,13 +9,18 @@ import Effect.Exception (error)
 import Effect.Class.Console as Console
 import Effect (Effect)
 import Control.Monad.Error.Class (throwError)
+import Ansi.Codes
+import Ansi.Output
+
 -- import Text.Parsing.StringParser.Combinators (many)
 import Data.Array (many, toUnfoldable)
 import Data.Either (Either, fromRight)
+import Data.Foldable (intercalate)
 import Data.List (List(..), (:), reverse)
 import Data.List.Types (NonEmptyList(..))
 import Data.String.Utils (lines)
 import Data.NonEmpty (head, tail)
+import Data.Traversable (traverse)
 import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser, runParser, ParseError)
 import Text.Parsing.StringParser.Combinators (sepBy1, sepEndBy, (<?>))
@@ -40,7 +45,21 @@ mainAff args =  do
   b <- baseline args
   d <- diff args
   let output = applyHunks b d
-  Console.log $ show output
+  void $ traverse Console.log $ formatOutput output
+  Console.log $ show d
+
+formatOutput :: List Output -> List String
+formatOutput os = map formatOutput' os
+  where formatOutput' (Context s) = s
+        formatOutput' (Focus (Insert s)) = withGraphics (bold <> foreground BrightGreen) s
+        formatOutput' (Focus (Delete s)) = withGraphics (bold <> foreground BrightRed) s
+        formatOutput' (Focus (Modify ss)) = intercalate "***" $ map formatSegment ss
+        formatSegment (Same s) = withGraphics bold s
+        formatSegment (Plus s) = withGraphics (bold <> foreground BrightGreen) s
+        formatSegment (Minus s) = withGraphics (bold <> foreground BrightRed) s
+
+
+
 
 runCmd :: forall a. String -> Array String -> (String -> a) -> Aff a
 runCmd cmd args f = do
