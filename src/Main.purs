@@ -12,6 +12,7 @@ import Control.Monad.Error.Class (throwError)
 import Ansi.Codes
 import Ansi.Output
 
+
 -- import Text.Parsing.StringParser.Combinators (many)
 import Data.Array (many, toUnfoldable)
 import Data.Either (Either, fromRight)
@@ -28,12 +29,14 @@ import Text.Parsing.StringParser.CodeUnits (char, regex, string)
 import Data.Int as I
 import Partial.Unsafe (unsafePartial)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Debug
+import Data.Debug.Type (prettyPrint)
+
 import Data.Tuple (Tuple(..))
 
 main :: Effect Unit
 main =
-  let args = {commit: "b733e3ba660854386b481966948cc2dd61183f2c"
+  let args = {commit: "28369a01e3969c530e74f76fc48a957e4db016b2"
              ,file: "src/Main.purs" }
   in
     launchAff_ $ mainAff args
@@ -46,7 +49,7 @@ mainAff args =  do
   d <- diff args
   let output = applyHunks b d
   void $ traverse Console.log $ formatOutput output
-  Console.log $ show d
+  Console.log $ prettyPrintWith  { maxDepth: Just 8, compactThreshold: 4 } (debug d)
 
 formatOutput :: List Output -> List String
 formatOutput os = map formatOutput' os
@@ -68,6 +71,7 @@ runCmd cmd args f = do
     , args: args
     , stdin: Nothing }
     CP.defaultSpawnOptions
+  Console.log result.stdout
   case result.exit of
     CP.Normally 0 -> pure $ f result.stdout
     otherwise -> throwError $ error result.stderr
@@ -80,7 +84,7 @@ diff args =
     , "-U0"
     , "--function-context"
     , "--word-diff=porcelain"
-    , "--word-diff-regex=\"(\\\\w+|.)\"]"
+    , "--word-diff-regex=(\\w+|.)"
     , args.commit <> "^"
     , args.commit
     , args.file]
@@ -105,8 +109,8 @@ data Segment
 
 derive instance genericSegment :: Generic Segment _
 
-instance showSegment :: Show Segment where
-  show = genericShow
+instance debugSegment :: Debug Segment where
+  debug = genericDebug
 
 data Line
   = Insert String
@@ -115,8 +119,8 @@ data Line
 
 derive instance genericLine :: Generic Line _
 
-instance showLine :: Show Line where
-  show = genericShow
+instance debugLine :: Debug Line where
+  debug = genericDebug
 
 segment :: Parser Segment
 segment =
@@ -222,8 +226,8 @@ data Output
 
 derive instance genericOutput :: Generic Output _
 
-instance showOutput :: Show Output where
-  show = genericShow
+instance debugOutput :: Debug Output where
+  debug = genericDebug
 
 applyHunks :: List String -> List Hunk -> List Output
 applyHunks = applyHunks' 1

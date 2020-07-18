@@ -6,6 +6,7 @@ You can edit this file as you like.
 , dependencies =
   [ "ansi"
   , "console"
+  , "debugged"
   , "effect"
   , "generics-rep"
   , "node-child-process"

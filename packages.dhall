@@ -123,6 +123,28 @@ let upstream =
 
 let overrides = {=}
 
-let additions = {=}
+let additions =
+  { debugged =
+      { dependencies =
+          [ "prelude"
+          , "console"
+          , "strings"
+          , "ordered-collections"
+          , "either"
+          , "tuples"
+          , "lists"
+          , "arrays"
+          , "bifunctors"
+          , "record"
+          , "effect"
+          , "generics-rep"
+          , "datetime"
+          , "enums" ]
+      , repo =
+          "https://github.com/hdgarrood/purescript-debugged.git"
+      , version =
+          "master"
+      }
+   }
 
 in  upstream // overrides // additions
