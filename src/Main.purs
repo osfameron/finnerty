@@ -11,7 +11,7 @@ import Effect (Effect)
 import Control.Monad.Error.Class (throwError)
 -- import Text.Parsing.StringParser.Combinators (many)
 import Data.Array (many, toUnfoldable)
-import Data.Either (Either(..))
+import Data.Either (Either, fromRight)
 import Data.List (List(..), (:), reverse)
 import Data.List.Types (NonEmptyList(..))
 import Data.String.Utils (lines)
@@ -39,7 +39,8 @@ mainAff :: Args -> Aff Unit
 mainAff args =  do
   b <- baseline args
   d <- diff args
-  Console.log $ show b
+  let output = applyHunks b d
+  Console.log $ show output
 
 runCmd :: forall a. String -> Array String -> (String -> a) -> Aff a
 runCmd cmd args f = do
@@ -52,7 +53,7 @@ runCmd cmd args f = do
     CP.Normally 0 -> pure $ f result.stdout
     otherwise -> throwError $ error result.stderr
 
-diff :: Args -> Aff DiffResult
+-- diff :: Args -> Aff DiffResult
 diff args =
   runCmd
     "git"
@@ -64,7 +65,7 @@ diff args =
     , args.commit <> "^"
     , args.commit
     , args.file]
-    (runParser whole)
+    (toUnfoldable <<< unsafePartial fromRight <<< runParser whole)
 
 baseline :: Args -> Aff (List String)
 baseline args =
@@ -199,6 +200,11 @@ splitAt = splitAt' Nil
 data Output
   = Context String
   | Focus Line  
+
+derive instance genericOutput :: Generic Output _
+
+instance showOutput :: Show Output where
+  show = genericShow
 
 applyHunks :: List String -> List Hunk -> List Output
 applyHunks = applyHunks' 1
