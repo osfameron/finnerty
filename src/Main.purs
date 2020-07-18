@@ -1,37 +1,46 @@
 module Main where
 
 import Prelude
-import Node.ChildProcess as CP
-import Sunde as S
-import Data.Maybe (Maybe(..), fromJust)
-import Effect.Aff (launchAff_, Aff)
-import Effect.Exception (error)
-import Effect.Class.Console as Console
-import Effect (Effect)
-import Control.Monad.Error.Class (throwError)
-import Ansi.Codes
-import Ansi.Output
 
--- import Text.Parsing.StringParser.Combinators (many)
+-- Basic Data
 import Data.Array (many, toUnfoldable)
 import Data.Either (Either, fromRight)
 import Data.Foldable (intercalate)
+import Data.Int as I
 import Data.List (List(..), (:), reverse)
 import Data.List.Types (NonEmptyList(..))
+import Data.Maybe (Maybe(..), fromJust)
 import Data.String.Utils (lines)
 import Data.NonEmpty (head, tail)
 import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..))
+
+-- String Parsing
 import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser, runParser, ParseError)
 import Text.Parsing.StringParser.Combinators (sepBy1, sepEndBy, (<?>))
 import Text.Parsing.StringParser.CodeUnits (char, regex, string)
-import Data.Int as I
+
+-- Effects
+import Effect (Effect)
+import Effect.Aff (launchAff_, Aff)
+import Effect.Exception (error)
+import Effect.Class.Console as Console
+
+-- Child Processes
+import Node.ChildProcess (Exit(..), defaultSpawnOptions)
+import Sunde (spawn)
+
+-- Console and Debug
+import Ansi.Codes (Color(..))
+import Ansi.Output (bold, foreground, withGraphics)
+
+-- Utility
+import Control.Monad.Error.Class (throwError)
 import Partial.Unsafe (unsafePartial)
 import Data.Generic.Rep (class Generic)
-import Data.Debug
+import Data.Debug (class Debug, genericDebug)
 import Data.Debug.Type (prettyPrint)
-
-import Data.Tuple (Tuple(..))
 
 main :: Effect Unit
 main =
@@ -62,13 +71,13 @@ formatOutput os = map formatOutput' os
 
 runCmd :: forall a. String -> Array String -> (String -> a) -> Aff a
 runCmd cmd args f = do
-  result <- S.spawn
+  result <- spawn
     { cmd: cmd
     , args: args
     , stdin: Nothing }
-    CP.defaultSpawnOptions
+    defaultSpawnOptions
   case result.exit of
-    CP.Normally 0 -> pure $ f result.stdout
+    Normally 0 -> pure $ f result.stdout
     otherwise -> throwError $ error result.stderr
 
 diff :: Args -> Aff (List Hunk)
