@@ -10,6 +10,7 @@ You can edit this file as you like.
   , "node-child-process"
   , "psci-support"
   , "string-parsers"
+  , "stringutils"
   , "sunde"
   ]
 , packages = ./packages.dhall

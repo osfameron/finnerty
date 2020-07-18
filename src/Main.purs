@@ -4,14 +4,17 @@ import Prelude
 import Node.ChildProcess as CP
 import Sunde as S
 import Data.Maybe (Maybe(..), fromJust)
-import Effect.Aff (launchAff_)
+import Effect.Aff (launchAff_, Aff)
+import Effect.Exception (error)
 import Effect.Class.Console as Console
 import Effect (Effect)
+import Control.Monad.Error.Class (throwError)
 -- import Text.Parsing.StringParser.Combinators (many)
-import Data.Array (many)
-import Data.Either (Either, Either(..))
+import Data.Array (many, toUnfoldable)
+import Data.Either (Either(..))
 import Data.List (List(..), (:), reverse)
 import Data.List.Types (NonEmptyList(..))
+import Data.String.Utils (lines)
 import Data.NonEmpty (head, tail)
 import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser, runParser, ParseError)
@@ -24,15 +27,22 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Tuple (Tuple(..))
 
 main :: Effect Unit
-main = do
-    let
-      commit = "b733e3ba660854386b481966948cc2dd61183f2c"
-      file = "src/Main.purs"
-    d <- launchAff_ $ diff commit file
-    Console.log $ show d
+main =
+  let args = {commit: "b733e3ba660854386b481966948cc2dd61183f2c"
+             ,file: "src/Main.purs" }
+  in
+    launchAff_ $ mainAff args
 
--- diff :: String -> String -> Effect Unit
-diff commit file =  do
+type Args = {commit :: String, file :: String}
+
+mainAff :: Args -> Aff Unit
+mainAff args =  do
+  b <- baseline args
+  d <- diff args
+  Console.log $ show b
+
+diff :: Args → Aff DiffResult
+diff args = do
   result <- S.spawn
     { cmd: "git"
     , args:
@@ -41,16 +51,31 @@ diff commit file =  do
       ,"--function-context"
       ,"--word-diff=porcelain"
       ,"--word-diff-regex=\"(\\\\w+|.)\"]"
-      ,commit
-      ,file]
-    , stdin: Nothing }
+      ,args.commit <> "^"
+      ,args.commit
+      ,args.file]
+    ,stdin: Nothing }
     CP.defaultSpawnOptions
-  let
-    d = case result.exit of
-      CP.Normally 0 -> Right $ runParser whole result.stdout
-      otherwise -> Left result.stderr
-  _ <- Console.log $ show d
-  pure d
+  case result.exit of
+    CP.Normally 0 -> pure $ runParser whole result.stdout
+    otherwise -> throwError $ error result.stderr
+
+baseline :: Args -> Aff (List String)
+baseline args = do
+  result <- S.spawn
+    { cmd: "git"
+    , args:
+      ["show"
+      ,args.commit <> "^:" <> args.file]
+    ,stdin: Nothing }
+    CP.defaultSpawnOptions
+  case result.exit of
+    CP.Normally 0 -> pure $ toUnfoldable <<< lines $ result.stdout
+    otherwise -> throwError $ error result.stderr
+
+type DiffResult = Either ParseError (Array Hunk)
+type Hunk = { header :: { from :: CountStart, to :: CountStart }, body :: List Line }
+type CountStart = { count :: Int, start :: Int }
 
 data Segment
   = Same String
@@ -81,7 +106,7 @@ segment =
 segment' :: String -> (String -> Segment) -> Parser Segment
 segment' prefix a = do
   skipString prefix
-  s <- regex "[^\n]+"
+  s <- regex ".*"
   skipNL
   pure $ a s
 
@@ -101,9 +126,6 @@ skipRegex = skip <<< regex
 newSegment :: Parser Unit
 newSegment = skip $ string "~\n"
 
-type CountStart
-  = { count :: Int, start :: Int }
-
 hunkHeader :: Parser { from :: CountStart, to :: CountStart }
 hunkHeader = do
   skipString "@@ -"
@@ -120,7 +142,7 @@ toInt s = unsafePartial $ fromJust $ I.fromString s
 
 int :: Parser Int
 int =
-  toInt <$> regex "[1-9][0-9]*"
+  toInt <$> regex "[0-9]+"
     <?> "Not an integer"
 
 intpair :: Parser { count :: Int, start :: Int }
@@ -136,7 +158,7 @@ intpair = do
 
 line :: Parser Line
 line = do
-  ss <- many segment
+  ss <- many segment <?> "No line"
   case ss of
     [ Plus s ] -> pure $ Insert s
     [] -> pure $ Insert ""
@@ -146,14 +168,14 @@ line = do
 hunkBody :: Parser (List Line)
 hunkBody = sepEndBy line newSegment
 
-type Hunk = { header :: { from :: CountStart, to :: CountStart }, body :: List Line }
 
 hunk :: Parser Hunk
 hunk = do
-  h <- hunkHeader
-  b <- hunkBody
+  h <- hunkHeader <?> "No hunkHeader"
+  b <- hunkBody <?> "No hunkBody"
   pure { header: h, body: b }
 
+diffHeader :: Parser Unit
 diffHeader = do
   skipRegex "diff .*\n"
   skipRegex "index .*\n"
@@ -161,13 +183,11 @@ diffHeader = do
   skipRegex "[+]{3} .*\n"
   pure unit
 
+whole :: Parser (Array Hunk)
 whole = do
   skip $ diffHeader
   h <- many hunk
   pure h
-
--- testParse :: Either ParseError (List Line)
-testParse = runParser whole src
 
 splitAt :: forall a. Int -> List a -> Tuple (List a) (List a)
 splitAt = splitAt' Nil
@@ -179,8 +199,7 @@ data Output
   = Context String
   | Focus Line  
 
-applyHunks :: forall a b. List String -> List Hunk -> List Output
--- applyHunks src hunks
+applyHunks :: List String -> List Hunk -> List Output
 applyHunks = applyHunks' 1
   where
     applyHunks' _ xs Nil = map Context xs
@@ -190,36 +209,7 @@ applyHunks = applyHunks' 1
         count = h.header.from.count
         Tuple cs rest = splitAt (start - pos) xs
         Tuple _ rest' = splitAt count rest
-      in (map Context cs) <> (map Focus h.body) <> applyHunks' (pos + start + count)  rest' hs
-
-src :: String
-src =
-  """diff --git a/src/Main.purs b/src/Main.purs
-index 3029fa9..632924f 100644
---- a/src/Main.purs
-+++ b/src/Main.purs
-@@ -4,12 +4,9 @@ hunk the first
- Same
-~
--Delete
-+Add
- Same
-~
-+Add
- Same
--Delete
-~
-@@ -10,22 +14,19 @@ another later hunk
- Same
-~
-~
--Delete
-~
-+Add
-~
--Delete
-+Add
- Same
-~
- END
-~"""
+      in
+        map Context cs
+        <> map Focus h.body
+        <> applyHunks' (pos + start + count)  rest' hs
