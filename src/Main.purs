@@ -166,7 +166,7 @@ hunkHeader = do
   pure { from: f, to: t }
 
 toInt :: String -> Int
-toInt s = unsafePartial $ fromJust $ I.fromString s
+toInt = unsafePartial fromJust <<< I.fromString
 
 int :: Parser Int
 int =
