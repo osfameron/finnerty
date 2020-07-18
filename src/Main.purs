@@ -41,37 +41,38 @@ mainAff args =  do
   d <- diff args
   Console.log $ show b
 
-diff :: Args → Aff DiffResult
-diff args = do
+runCmd :: forall a. String -> Array String -> (String -> a) -> Aff a
+runCmd cmd args f = do
   result <- S.spawn
-    { cmd: "git"
-    , args:
-      ["diff"
-      ,"-U0"
-      ,"--function-context"
-      ,"--word-diff=porcelain"
-      ,"--word-diff-regex=\"(\\\\w+|.)\"]"
-      ,args.commit <> "^"
-      ,args.commit
-      ,args.file]
-    ,stdin: Nothing }
+    { cmd: cmd
+    , args: args
+    , stdin: Nothing }
     CP.defaultSpawnOptions
   case result.exit of
-    CP.Normally 0 -> pure $ runParser whole result.stdout
+    CP.Normally 0 -> pure $ f result.stdout
     otherwise -> throwError $ error result.stderr
 
+diff :: Args -> Aff DiffResult
+diff args =
+  runCmd
+    "git"
+    [ "diff"
+    , "-U0"
+    , "--function-context"
+    , "--word-diff=porcelain"
+    , "--word-diff-regex=\"(\\\\w+|.)\"]"
+    , args.commit <> "^"
+    , args.commit
+    , args.file]
+    (runParser whole)
+
 baseline :: Args -> Aff (List String)
-baseline args = do
-  result <- S.spawn
-    { cmd: "git"
-    , args:
-      ["show"
-      ,args.commit <> "^:" <> args.file]
-    ,stdin: Nothing }
-    CP.defaultSpawnOptions
-  case result.exit of
-    CP.Normally 0 -> pure $ toUnfoldable <<< lines $ result.stdout
-    otherwise -> throwError $ error result.stderr
+baseline args =
+  runCmd
+    "git"
+    [ "show"
+    , args.commit <> "^:" <> args.file]
+    (toUnfoldable <<< lines)
 
 type DiffResult = Either ParseError (Array Hunk)
 type Hunk = { header :: { from :: CountStart, to :: CountStart }, body :: List Line }
