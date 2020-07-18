@@ -33,19 +33,19 @@ import Sunde (spawn)
 
 -- Console and Debug
 import Ansi.Codes (Color(..))
-import Ansi.Output (bold, foreground, withGraphics)
+import Ansi.Output (bold, dim, foreground, withGraphics)
 
 -- Utility
 import Control.Monad.Error.Class (throwError)
 import Partial.Unsafe (unsafePartial)
 import Data.Generic.Rep (class Generic)
-import Data.Debug (class Debug, genericDebug)
-import Data.Debug.Type (prettyPrint)
+import Data.Debug (class Debug, debug, genericDebug)
+import Data.Debug.Type (prettyPrintWith)
 
 main :: Effect Unit
 main =
-  let args = {commit: "28369a01e3969c530e74f76fc48a957e4db016b2"
-             ,file: "src/Main.purs" }
+  let args = {commit: "3cfa381c9d1461cf0d05cc3fb982089f9a5399cf"
+             ,file: "test/Example.test" }
   in
     launchAff_ $ mainAff args
 
@@ -57,15 +57,15 @@ mainAff args =  do
   d <- diff args
   let output = applyHunks b d
   void $ traverse Console.log $ formatOutput output
-  -- Console.log $ prettyPrintWith  { maxDepth: Just 8, compactThreshold: 4 } (debug d)
+  Console.log $ prettyPrintWith  { maxDepth: Just 8, compactThreshold: 4 } (debug d)
 
 formatOutput :: List Output -> List String
 formatOutput os = map formatOutput' os
-  where formatOutput' (Context s) = s
+  where formatOutput' (Context s) = withGraphics dim s
         formatOutput' (Focus (Insert s)) = withGraphics (bold <> foreground BrightGreen) s
         formatOutput' (Focus (Delete s)) = withGraphics (bold <> foreground BrightRed) s
         formatOutput' (Focus (Modify ss)) = intercalate "" $ map formatSegment ss
-        formatSegment (Same s) = withGraphics bold s
+        formatSegment (Same s) = s
         formatSegment (Plus s) = withGraphics (bold <> foreground BrightGreen) s
         formatSegment (Minus s) = withGraphics (bold <> foreground BrightRed) s
 
@@ -244,4 +244,4 @@ applyHunks = applyHunks' 1
       in
         map Context cs
         <> map Focus h.body
-        <> applyHunks' (pos + start + count)  rest' hs
+        <> applyHunks' (start + count)  rest' hs
