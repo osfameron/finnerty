@@ -12,7 +12,6 @@ import Control.Monad.Error.Class (throwError)
 import Ansi.Codes
 import Ansi.Output
 
-
 -- import Text.Parsing.StringParser.Combinators (many)
 import Data.Array (many, toUnfoldable)
 import Data.Either (Either, fromRight)
@@ -49,20 +48,17 @@ mainAff args =  do
   d <- diff args
   let output = applyHunks b d
   void $ traverse Console.log $ formatOutput output
-  Console.log $ prettyPrintWith  { maxDepth: Just 8, compactThreshold: 4 } (debug d)
+  -- Console.log $ prettyPrintWith  { maxDepth: Just 8, compactThreshold: 4 } (debug d)
 
 formatOutput :: List Output -> List String
 formatOutput os = map formatOutput' os
   where formatOutput' (Context s) = s
         formatOutput' (Focus (Insert s)) = withGraphics (bold <> foreground BrightGreen) s
         formatOutput' (Focus (Delete s)) = withGraphics (bold <> foreground BrightRed) s
-        formatOutput' (Focus (Modify ss)) = intercalate "***" $ map formatSegment ss
+        formatOutput' (Focus (Modify ss)) = intercalate "" $ map formatSegment ss
         formatSegment (Same s) = withGraphics bold s
         formatSegment (Plus s) = withGraphics (bold <> foreground BrightGreen) s
         formatSegment (Minus s) = withGraphics (bold <> foreground BrightRed) s
-
-
-
 
 runCmd :: forall a. String -> Array String -> (String -> a) -> Aff a
 runCmd cmd args f = do
@@ -71,12 +67,11 @@ runCmd cmd args f = do
     , args: args
     , stdin: Nothing }
     CP.defaultSpawnOptions
-  Console.log result.stdout
   case result.exit of
     CP.Normally 0 -> pure $ f result.stdout
     otherwise -> throwError $ error result.stderr
 
--- diff :: Args -> Aff DiffResult
+diff :: Args -> Aff (List Hunk)
 diff args =
   runCmd
     "git"
@@ -147,7 +142,6 @@ skipString = skip <<< string
 skipRegex :: String -> Parser Unit
 skipRegex = skip <<< regex
 
-
 newSegment :: Parser Unit
 newSegment = skip $ string "~\n"
 
@@ -192,7 +186,6 @@ line = do
 
 hunkBody :: Parser (List Line)
 hunkBody = sepEndBy line newSegment
-
 
 hunk :: Parser Hunk
 hunk = do
