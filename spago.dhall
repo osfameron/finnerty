@@ -14,6 +14,8 @@ You can edit this file as you like.
   , "string-parsers"
   , "stringutils"
   , "sunde"
+  , "tuples-native"
+  , "typelevel"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
