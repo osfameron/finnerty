@@ -2,7 +2,7 @@ module Zipper where
 
 import Prelude
 
-import Data.List (List(..), (:))
+import Data.List (List(..), (:), reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as S
 
@@ -57,3 +57,11 @@ nextTill p z = iterateUntilM pred next z
         pred z' = fromMaybe false $ do
             h <- head z'
             pure $ p h
+
+_item i = i.item
+
+unZip :: forall a b. Zipper a b -> List a
+unZip (Zipper prev succ _ _) =
+    (reverse $ map _item prev)
+    <>
+    succ
