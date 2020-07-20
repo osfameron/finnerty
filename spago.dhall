@@ -9,6 +9,7 @@ You can edit this file as you like.
   , "debugged"
   , "effect"
   , "generics-rep"
+  , "monad-loops"
   , "node-child-process"
   , "psci-support"
   , "string-parsers"
