@@ -3,7 +3,7 @@ module Zipper where
 import Prelude
 
 import Data.Traversable (scanl)
-import Data.List (List(..), (:), reverse, filter)
+import Data.List (List(..), (:), reverse, filter, head)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as S
 
@@ -37,9 +37,8 @@ next (Zipper prev@(curr:_) (new:rest) z f) =
         prev' = (focus: prev)
     in Just $ Zipper prev' rest z f
 
-head :: forall a b. Zipper a b -> Maybe (Item a b)
-head (Zipper Nil _ _ _) = Nothing
-head (Zipper (h:_) _ _ _) = Just h
+_crumb :: forall a b. Zipper a b -> List (Item a b)
+_crumb (Zipper c _ _ _) = c
 
 update :: forall a b. (a -> a) -> Zipper a b -> Zipper a b
 update _ z@(Zipper Nil _ _ _) = z
@@ -74,7 +73,7 @@ zero :: Item String Int
 zero = {acc: 0, val: ""}
 
 idx :: Zipper String Int
-idx = zipper ("foo": "barr": "bazz" : "qqux" : Nil) zero (\{acc, val} -> acc + S.length val)
+idx = zipper ("foo": "bar": "baz" : "qqux" : Nil) zero (\{acc, val} -> acc + S.length val)
 
 len4 :: forall b. Item String b -> Boolean
 len4 i = S.length i.val == 4
@@ -86,7 +85,7 @@ nextTill :: forall a b. (Item a b -> Boolean) -> Zipper a b -> Maybe (Zipper a b
 nextTill p z = iterateUntilM pred next z
     where
         pred z' = fromMaybe false $ do
-            h <- head z'
+            h <- head $ _crumb z'
             pure $ p h
 
 _val i = i.val
