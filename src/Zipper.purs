@@ -2,27 +2,21 @@ module Zipper where
 
 import Prelude
 
-import Data.Traversable
-import Data.List as L
-import Data.List (List(..), (:), reverse)
+import Data.Traversable (scanl)
+import Data.List (List(..), (:), reverse, filter)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as S
 
 import Control.Monad.Loops (iterateUntilM)
 
-import Effect
+import Effect (Effect)
 import Effect.Console as Console
 
 import Data.Generic.Rep (class Generic)
 import Data.Debug (class Debug, genericDebug, prettyPrintWith, debug)
 
 type Item a b = {val :: a, acc :: b}
-item :: forall t1 t2.
-  t1
-  -> t2
-     -> { acc :: t2
-        , val :: t1
-        }
+item :: forall a b. a -> b -> Item a b
 item a b = {val: a, acc: b}
 
 data Zipper a b = Zipper (List (Item a b)) (List a) (Item a b) (Item a b -> b)
@@ -58,11 +52,19 @@ split t (Zipper (h:prev) rest z f) =
     let vals = t h
         aux :: Item a b -> a -> Item a b
         aux i new = item new (f i)
-        items = scanl aux h vals
+        items = scanl aux z{acc=h.acc} vals
     in Zipper (reverse items <> prev) rest z f
 
 delete :: forall a b. Zipper a b -> Zipper a b
 delete = split (const Nil)
+
+splitAt :: forall b. Int -> Zipper String b -> Zipper String b
+splitAt pos = split aux
+    where aux {val} = let
+            ss = S.splitAt pos val
+            nonempty = (_ > 0) <<< S.length
+        in filter nonempty (ss.before: ss.after: Nil)
+
 
 -- :print Zipper.myDebug
 myDebug :: forall d. Debug d => d -> Effect Unit
