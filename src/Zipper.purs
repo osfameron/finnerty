@@ -58,10 +58,10 @@ split t (Zipper (h:prev) rest z f) =
 delete :: forall a b. Zipper a b -> Zipper a b
 delete = split (const Nil)
 
-splitAt :: forall b. Int -> Zipper String b -> Zipper String b
+splitAt :: Int -> Zipper String Int -> Zipper String Int
 splitAt pos = split aux
-    where aux {val} = let
-            ss = S.splitAt pos val
+    where aux {acc, val} = let
+            ss = S.splitAt (pos - acc) val
             nonempty = (_ > 0) <<< S.length
         in filter nonempty (ss.before: ss.after: Nil)
 
