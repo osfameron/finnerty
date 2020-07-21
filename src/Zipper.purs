@@ -2,51 +2,80 @@ module Zipper where
 
 import Prelude
 
+import Data.Traversable
+import Data.List as L
 import Data.List (List(..), (:), reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String as S
 
 import Control.Monad.Loops (iterateUntilM)
 
-import Data.Generic.Rep (class Generic)
-import Data.Debug (class Debug, genericDebug)
+import Effect
+import Effect.Console as Console
 
-type Item a b = {item :: a, acc :: b}
+import Data.Generic.Rep (class Generic)
+import Data.Debug (class Debug, genericDebug, prettyPrintWith, debug)
+
+type Item a b = {val :: a, acc :: b}
 item :: forall t1 t2.
   t1
   -> t2
      -> { acc :: t2
-        , item :: t1
+        , val :: t1
         }
-item a b = {item: a, acc: b}
+item a b = {val: a, acc: b}
 
-data Zipper a b = Zipper (List (Item a b)) (List a) b (b -> a -> b)
+data Zipper a b = Zipper (List (Item a b)) (List a) (Item a b) (Item a b -> b)
 derive instance genericZipper :: Generic (Zipper a b) _
 instance debugZipper :: (Debug a, Debug b) => Debug (Zipper a b) where
   debug = genericDebug
 
-zipper :: forall a b. (List a) -> b -> (b -> a -> b) -> Zipper a b
+zipper :: forall a b. (List a) -> (Item a b) -> (Item a b -> b) -> Zipper a b
 zipper Nil z f = Zipper Nil Nil z f -- we only need z for this case, bah
-zipper (h:t) z f = Zipper (item h z : Nil) t z f
+zipper (h:t) z f = Zipper (z {val=h} : Nil) t z f
 
 next :: forall a b. Zipper a b -> Maybe (Zipper a b)
 next (Zipper _ Nil _ _) = Nothing
-next (Zipper Nil (new:rest) z f) = Just $ Zipper (item new z : Nil) rest z f
+next (Zipper Nil (new:rest) z f) = Just $ Zipper (z {val=new} : Nil) rest z f
 next (Zipper prev@(curr:_) (new:rest) z f) =
     let
-        acc = f curr.acc new
-        prev' = (item new acc: prev)
+        focus = item new (f curr)
+        prev' = (focus: prev)
     in Just $ Zipper prev' rest z f
 
 head :: forall a b. Zipper a b -> Maybe (Item a b)
 head (Zipper Nil _ _ _) = Nothing
 head (Zipper (h:_) _ _ _) = Just h
 
+update :: forall a b. (a -> a) -> Zipper a b -> Zipper a b
+update _ z@(Zipper Nil _ _ _) = z
+update t (Zipper ({val,acc}:prev) rest z f)
+    = Zipper (item (t val) acc: prev) rest z f
+
+split :: forall a b. (Item a b -> List a) -> Zipper a b -> Zipper a b
+split _ z@(Zipper Nil _ _ _) = z
+split t (Zipper (h:prev) rest z f) =
+    let vals = t h
+        aux :: Item a b -> a -> Item a b
+        aux i new = item new (f i)
+        items = scanl aux h vals
+    in Zipper (reverse items <> prev) rest z f
+
+delete :: forall a b. Zipper a b -> Zipper a b
+delete = split (const Nil)
+
+-- :print Zipper.myDebug
+myDebug :: forall d. Debug d => d -> Effect Unit
+myDebug = Console.log <<< prettyPrintWith {compactThreshold: 6, maxDepth: Just 6} <<< debug
+
+zero :: Item String Int
+zero = {acc: 0, val: ""}
+
 idx :: Zipper String Int
-idx = zipper ("foo": "bar": "bazz" : "qqux" : Nil) 0 (\b a -> b + S.length a)
+idx = zipper ("foo": "barr": "bazz" : "qqux" : Nil) zero (\{acc, val} -> acc + S.length val)
 
 len4 :: forall b. Item String b -> Boolean
-len4 i = S.length i.item == 4
+len4 i = S.length i.val == 4
 
 next4 :: Maybe (Zipper String Int)
 next4 = nextTill len4 idx
@@ -58,10 +87,10 @@ nextTill p z = iterateUntilM pred next z
             h <- head z'
             pure $ p h
 
-_item i = i.item
+_val i = i.val
 
 unZip :: forall a b. Zipper a b -> List a
 unZip (Zipper prev succ _ _) =
-    (reverse $ map _item prev)
+    (reverse $ map _val prev)
     <>
     succ
