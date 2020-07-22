@@ -73,16 +73,16 @@ prev (Zipper (curr:rest) nxt z f) = Just $ Zipper rest (_val curr: nxt) z f
 
 -- | come out of the zipper, returning a list of values
 unZip :: forall a b. Zipper a b -> List a
-unZip (Zipper prev succ _ _) =
-    (reverse $ map _val prev)
+unZip (Zipper prv succ _ _) =
+    (reverse $ map _val prv)
     <>
     succ
 
 -- | update value at the current location by passing in a function from val -> val
 update :: forall a b. (a -> a) -> Zipper a b -> Zipper a b
 update _ z@(Zipper Nil _ _ _) = z
-update t (Zipper ({val,acc}:prev) rest z f)
-    = Zipper (item (t val) acc: prev) rest z f
+update t (Zipper ({val,acc}:prv) rest z f)
+    = Zipper (item (t val) acc: prv) rest z f
 
 -- | split current Item. Pass in a function which returns a list of values.
 -- | You could return e.g.
@@ -92,12 +92,12 @@ update t (Zipper ({val,acc}:prev) rest z f)
 -- | The cursor will be left at the first value (or the previous one in the case of a deletion)
 split :: forall a b. (Item a b -> List a) -> Zipper a b -> Zipper a b
 split _ z@(Zipper Nil _ _ _) = z
-split t (Zipper (h:prev) rest z f) =
+split t (Zipper (h:prv) rest z f) =
     let vals = t h
         aux :: Item a b -> a -> Item a b
         aux i new = item new (f i)
         items = scanl aux z{acc=h.acc} vals
-    in Zipper (reverse items <> prev) rest z f
+    in Zipper (reverse items <> prv) rest z f
 
 -- | Delete the node at the cursor
 delete :: forall a b. Zipper a b -> Zipper a b
