@@ -31,11 +31,15 @@ zipper (h:t) z f = Zipper (z {val=h} : Nil) t z f
 next :: forall a b. Zipper a b -> Maybe (Zipper a b)
 next (Zipper _ Nil _ _) = Nothing
 next (Zipper Nil (new:rest) z f) = Just $ Zipper (z {val=new} : Nil) rest z f
-next (Zipper prev@(curr:_) (new:rest) z f) =
+next (Zipper prv@(curr:_) (new:rest) z f) =
     let
         focus = item new (f curr)
-        prev' = (focus: prev)
-    in Just $ Zipper prev' rest z f
+        prv' = (focus: prv)
+    in Just $ Zipper prv' rest z f
+
+prev :: forall a b. Zipper a b -> Maybe (Zipper a b)
+prev (Zipper Nil _ _ _) = Nothing
+prev (Zipper (curr:rest) nxt z f) = Just $ Zipper rest (_val curr: nxt) z f
 
 _crumb :: forall a b. Zipper a b -> List (Item a b)
 _crumb (Zipper c _ _ _) = c
