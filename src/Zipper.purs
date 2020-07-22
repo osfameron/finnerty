@@ -15,19 +15,40 @@ import Effect.Console as Console
 import Data.Generic.Rep (class Generic)
 import Data.Debug (class Debug, genericDebug, prettyPrintWith, debug)
 
+-- | `Item` is a pair of a Value and an Accumulator.
+-- | For example `Item String Int` might represent a string and its position in a document.
 type Item a b = {val :: a, acc :: b}
 item :: forall a b. a -> b -> Item a b
 item a b = {val: a, acc: b}
 
+-- | Accessor for the value part of an item
+_val :: forall a b. Item a b -> a
+_val i = i.val
+
+-- | # Zipper
+-- | This is a simple zipper over a list, with an accumulator
+-- |   `Zipper Crumb Next Zero Acc`
+-- | Crumb: list of current and previous items (the breadcrumb trail), e.g. values and accumulators.
+-- | Next: list of future values
+-- | Zero: A Zero item, used for a Nil list.
+-- | Acc: A function which takes an item (value + accumulator) and returns the next accumulator
 data Zipper a b = Zipper (List (Item a b)) (List a) (Item a b) (Item a b -> b)
 derive instance genericZipper :: Generic (Zipper a b) _
 instance debugZipper :: (Debug a, Debug b) => Debug (Zipper a b) where
   debug = genericDebug
 
+-- | accessor for the crumb (current and previous items)
+_crumb :: forall a b. Zipper a b -> List (Item a b)
+_crumb (Zipper c _ _ _) = c
+
+-- | convenience function to create a Zipper.
+-- |   `zipper values zero acc`
 zipper :: forall a b. (List a) -> (Item a b) -> (Item a b -> b) -> Zipper a b
 zipper Nil z f = Zipper Nil Nil z f -- we only need z for this case, bah
 zipper (h:t) z f = Zipper (z {val=h} : Nil) t z f
 
+-- | move to next position in Zipper.
+-- | Returns a Maybe, e.g. Nothing if at end of zipper.
 next :: forall a b. Zipper a b -> Maybe (Zipper a b)
 next (Zipper _ Nil _ _) = Nothing
 next (Zipper Nil (new:rest) z f) = Just $ Zipper (z {val=new} : Nil) rest z f
@@ -37,18 +58,38 @@ next (Zipper prv@(curr:_) (new:rest) z f) =
         prv' = (focus: prv)
     in Just $ Zipper prv' rest z f
 
+-- | carry on moving `next` in a Zipper till predicate holds true
+nextTill :: forall a b. (Item a b -> Boolean) -> Zipper a b -> Maybe (Zipper a b)
+nextTill p z = iterateUntilM pred next z
+    where
+        pred z' = fromMaybe false $ do
+            h <- head $ _crumb z'
+            pure $ p h
+
+-- | move back in a zipper, returning `Nothing` if already at beginning
 prev :: forall a b. Zipper a b -> Maybe (Zipper a b)
 prev (Zipper Nil _ _ _) = Nothing
 prev (Zipper (curr:rest) nxt z f) = Just $ Zipper rest (_val curr: nxt) z f
 
-_crumb :: forall a b. Zipper a b -> List (Item a b)
-_crumb (Zipper c _ _ _) = c
+-- | come out of the zipper, returning a list of values
+unZip :: forall a b. Zipper a b -> List a
+unZip (Zipper prev succ _ _) =
+    (reverse $ map _val prev)
+    <>
+    succ
 
+-- | update value at the current location by passing in a function from val -> val
 update :: forall a b. (a -> a) -> Zipper a b -> Zipper a b
 update _ z@(Zipper Nil _ _ _) = z
 update t (Zipper ({val,acc}:prev) rest z f)
     = Zipper (item (t val) acc: prev) rest z f
 
+-- | split current Item. Pass in a function which returns a list of values.
+-- | You could return e.g.
+-- |  * zero values: (deleting this item. But see `delete`)
+-- |  * 1 value: changed or unchanged
+-- |  * 2+ values: splitting the insertion point
+-- | The cursor will be left at the first value (or the previous one in the case of a deletion)
 split :: forall a b. (Item a b -> List a) -> Zipper a b -> Zipper a b
 split _ z@(Zipper Nil _ _ _) = z
 split t (Zipper (h:prev) rest z f) =
@@ -58,9 +99,13 @@ split t (Zipper (h:prev) rest z f) =
         items = scanl aux z{acc=h.acc} vals
     in Zipper (reverse items <> prev) rest z f
 
+-- | Delete the node at the cursor
 delete :: forall a b. Zipper a b -> Zipper a b
 delete = split (const Nil)
 
+-- | For a `Zipper String Int`, split the node at the provided absolute position.
+-- | If the position is before the accumulator, or after accumulator+length, then
+-- | the zipper is returned unchanged.
 splitAt :: Int -> Zipper String Int -> Zipper String Int
 splitAt pos = split aux
     where aux {acc, val} = let
@@ -69,10 +114,12 @@ splitAt pos = split aux
         in filter nonempty (ss.before: ss.after: Nil)
 
 
--- :print Zipper.myDebug
+-- | A debug instance which shows enough context to be useful for zippers.
+-- | At repl, call `:print Zipper.myDebug`
 myDebug :: forall d. Debug d => d -> Effect Unit
 myDebug = Console.log <<< prettyPrintWith {compactThreshold: 6, maxDepth: Just 6} <<< debug
 
+-- | # Sample code
 zero :: Item String Int
 zero = {acc: 0, val: ""}
 
@@ -85,17 +132,3 @@ len4 i = S.length i.val == 4
 next4 :: Maybe (Zipper String Int)
 next4 = nextTill len4 idx
 
-nextTill :: forall a b. (Item a b -> Boolean) -> Zipper a b -> Maybe (Zipper a b)
-nextTill p z = iterateUntilM pred next z
-    where
-        pred z' = fromMaybe false $ do
-            h <- head $ _crumb z'
-            pure $ p h
-
-_val i = i.val
-
-unZip :: forall a b. Zipper a b -> List a
-unZip (Zipper prev succ _ _) =
-    (reverse $ map _val prev)
-    <>
-    succ
