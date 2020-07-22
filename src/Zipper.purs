@@ -25,6 +25,8 @@ item a b = {val: a, acc: b}
 _val :: forall a b. Item a b -> a
 _val i = i.val
 
+_acc i = i.acc
+
 -- | # Zipper
 -- | This is a simple zipper over a list, with an accumulator
 -- |   `Zipper Crumb Next Zero Acc`
@@ -58,18 +60,30 @@ next (Zipper prv@(curr:_) (new:rest) z f) =
         prv' = (focus: prv)
     in Just $ Zipper prv' rest z f
 
+_iterateTill :: forall a b.
+    (Zipper a b -> Maybe (Zipper a b))
+    -> (Item a b -> Boolean)
+    -> Zipper a b
+    -> Maybe (Zipper a b)
+_iterateTill transform pred zipper
+    = iterateUntilM pred' transform zipper
+    where
+        pred' z' = fromMaybe false $ do
+            h <- head $ _crumb z'
+            pure $ pred h
+
 -- | carry on moving `next` in a Zipper till predicate holds true
 nextTill :: forall a b. (Item a b -> Boolean) -> Zipper a b -> Maybe (Zipper a b)
-nextTill p z = iterateUntilM pred next z
-    where
-        pred z' = fromMaybe false $ do
-            h <- head $ _crumb z'
-            pure $ p h
+nextTill = _iterateTill next
 
 -- | move back in a zipper, returning `Nothing` if already at beginning
 prev :: forall a b. Zipper a b -> Maybe (Zipper a b)
 prev (Zipper Nil _ _ _) = Nothing
 prev (Zipper (curr:rest) nxt z f) = Just $ Zipper rest (_val curr: nxt) z f
+
+-- | carry on moving `prev` in a Zipper till predicate holds true
+prevTill :: forall a b. (Item a b -> Boolean) -> Zipper a b -> Maybe (Zipper a b)
+prevTill = _iterateTill prev
 
 -- | come out of the zipper, returning a list of values
 unZip :: forall a b. Zipper a b -> List a
@@ -103,6 +117,8 @@ split t (Zipper (h:prv) rest z f) =
 delete :: forall a b. Zipper a b -> Zipper a b
 delete = split (const Nil)
 
+-- | # Functions operating on Zipper String Int
+
 -- | For a `Zipper String Int`, split the node at the provided absolute position.
 -- | If the position is before the accumulator, or after accumulator+length, then
 -- | the zipper is returned unchanged.
@@ -113,11 +129,16 @@ splitAt pos = split aux
             nonempty = (_ > 0) <<< S.length
         in filter nonempty (ss.before: ss.after: Nil)
 
-
--- | A debug instance which shows enough context to be useful for zippers.
--- | At repl, call `:print Zipper.myDebug`
-myDebug :: forall d. Debug d => d -> Effect Unit
-myDebug = Console.log <<< prettyPrintWith {compactThreshold: 6, maxDepth: Just 6} <<< debug
+goto :: Int -> Zipper String Int -> Maybe (Zipper String Int)
+goto _ (Zipper Nil _ _ _) = Nothing
+goto pos z@(Zipper (i@{acc}:_) _ _ f) =
+    let start = acc
+        end =  f i
+        t = case pos of
+            p | p >= end -> nextTill (f >>> (_ > pos))
+            p | p < start -> prevTill (_acc >>> (_ <= pos))
+            otherwise -> pure
+        in t z
 
 -- | # Sample code
 zero :: Item String Int
@@ -131,4 +152,12 @@ len4 i = S.length i.val == 4
 
 next4 :: Maybe (Zipper String Int)
 next4 = nextTill len4 idx
+
+
+-- | A debug instance which shows enough context to be useful for zippers.
+-- | At repl, call `:print Zipper.myDebug`
+myDebug :: forall d. Debug d => d -> Effect Unit
+myDebug = Console.log <<< prettyPrintWith {compactThreshold: 6, maxDepth: Just 6} <<< debug
+
+
 
