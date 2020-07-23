@@ -21,12 +21,6 @@ type Item a b = {val :: a, acc :: b}
 item :: forall a b. a -> b -> Item a b
 item a b = {val: a, acc: b}
 
--- | Accessor for the value part of an item
-_val :: forall a b. Item a b -> a
-_val i = i.val
-
-_acc i = i.acc
-
 -- | # Zipper
 -- | This is a simple zipper over a list, with an accumulator
 -- |   `Zipper Crumb Next Zero Acc`
@@ -79,7 +73,7 @@ nextTill = _iterateTill next
 -- | move back in a zipper, returning `Nothing` if already at beginning
 prev :: forall a b. Zipper a b -> Maybe (Zipper a b)
 prev (Zipper Nil _ _ _) = Nothing
-prev (Zipper (curr:rest) nxt z f) = Just $ Zipper rest (_val curr: nxt) z f
+prev (Zipper (curr:rest) nxt z f) = Just $ Zipper rest (_.val curr: nxt) z f
 
 -- | carry on moving `prev` in a Zipper till predicate holds true
 prevTill :: forall a b. (Item a b -> Boolean) -> Zipper a b -> Maybe (Zipper a b)
@@ -88,7 +82,7 @@ prevTill = _iterateTill prev
 -- | come out of the zipper, returning a list of values
 unZip :: forall a b. Zipper a b -> List a
 unZip (Zipper prv succ _ _) =
-    (reverse $ map _val prv)
+    (reverse $ map _.val prv)
     <>
     succ
 
@@ -136,7 +130,7 @@ goto pos z@(Zipper (i@{acc}:_) _ _ f) =
         end =  f i
         t = case pos of
             p | p >= end -> nextTill (f >>> (_ > pos))
-            p | p < start -> prevTill (_acc >>> (_ <= pos))
+            p | p < start -> prevTill (_.acc >>> (_ <= pos))
             otherwise -> pure
         in t z
 
