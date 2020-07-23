@@ -4,6 +4,8 @@ import Data.List (List)
 import Data.Generic.Rep (class Generic)
 import Data.Debug (class Debug, genericDebug)
 
+type Args = {commit :: String, file :: String}
+
 type Hunk = { header :: { from :: CountStart, to :: CountStart }, body :: List Line }
 type CountStart = { count :: Int, start :: Int }
 
