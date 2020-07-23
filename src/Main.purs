@@ -1,6 +1,7 @@
 module Main where
 
 import Prelude
+import Types
 
 -- Basic Data
 import Data.Array (many, toUnfoldable)
@@ -26,6 +27,7 @@ import Effect (Effect)
 import Effect.Aff (launchAff_, Aff)
 import Effect.Exception (error)
 import Effect.Class.Console as Console
+import Data.Debug (debug, prettyPrintWith)
 
 -- Child Processes
 import Node.ChildProcess (Exit(..), defaultSpawnOptions)
@@ -38,9 +40,9 @@ import Ansi.Output (bold, dim, foreground, withGraphics)
 -- Utility
 import Control.Monad.Error.Class (throwError)
 import Partial.Unsafe (unsafePartial)
-import Data.Generic.Rep (class Generic)
-import Data.Debug (class Debug, debug, genericDebug)
-import Data.Debug.Type (prettyPrintWith)
+
+
+type DiffResult = Either ParseError (Array Hunk)
 
 main :: Effect Unit
 main =
@@ -102,29 +104,6 @@ baseline args =
     , args.commit <> "^:" <> args.file]
     (toUnfoldable <<< lines)
 
-type DiffResult = Either ParseError (Array Hunk)
-type Hunk = { header :: { from :: CountStart, to :: CountStart }, body :: List Line }
-type CountStart = { count :: Int, start :: Int }
-
-data Segment
-  = Same String
-  | Plus String
-  | Minus String
-
-derive instance genericSegment :: Generic Segment _
-
-instance debugSegment :: Debug Segment where
-  debug = genericDebug
-
-data Line
-  = Insert String
-  | Delete String
-  | Modify (Array Segment)
-
-derive instance genericLine :: Generic Line _
-
-instance debugLine :: Debug Line where
-  debug = genericDebug
 
 segment :: Parser Segment
 segment =
@@ -221,15 +200,6 @@ splitAt = splitAt' Nil
   where splitAt' xs 0 ys = Tuple (reverse xs) ys
         splitAt' xs _ Nil = Tuple (reverse xs) Nil
         splitAt' xs n (y: ys) = splitAt' (y:xs) (n - 1) ys
-
-data Output
-  = Context String
-  | Focus Line  
-
-derive instance genericOutput :: Generic Output _
-
-instance debugOutput :: Debug Output where
-  debug = genericDebug
 
 applyHunks :: List String -> List Hunk -> List Output
 applyHunks = applyHunks' 1
