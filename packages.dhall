@@ -119,13 +119,13 @@ let additions =
 
 
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.13.8-20200708/packages.dhall sha256:df5b0f1ae92d4401404344f4fb2a7a3089612c9f30066dcddf9eaea4fe780e29
+      https://github.com/purescript/package-sets/releases/download/psc-0.13.8-20200724/packages.dhall sha256:bb941d30820a49345a0e88937094d2b9983d939c9fd3a46969b85ce44953d7d9
 
 let overrides = {=}
 
 let additions =
-  { debugged =
-      { dependencies =
+      { debugged =
+        { dependencies =
           [ "prelude"
           , "console"
           , "strings"
@@ -139,12 +139,11 @@ let additions =
           , "effect"
           , "generics-rep"
           , "datetime"
-          , "enums" ]
-      , repo =
-          "https://github.com/hdgarrood/purescript-debugged.git"
-      , version =
-          "master"
+          , "enums"
+          ]
+        , repo = "https://github.com/hdgarrood/purescript-debugged.git"
+        , version = "master"
+        }
       }
-   }
 
 in  upstream // overrides // additions
