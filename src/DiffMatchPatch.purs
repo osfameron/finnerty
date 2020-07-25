@@ -1,11 +1,22 @@
 module DiffMatchPatch where
 
-import Prelude (map, ($))
+import Prelude (map, ($), (<<<), (<), (>))
+import Types
+
 import Data.Tuple (Tuple(..))
 import Data.Tuple.Native (T2, xt)
-import Data.Typelevel.Num.Reps (d0, d1)
 
-foreign import diffImpl :: String -> String -> Array (T2 Int String)
+type DiffConfig = { editCost :: Int }
+foreign import data DiffMatchPatch :: Type
+foreign import diffMatchPatch :: DiffConfig -> DiffMatchPatch
+foreign import diffImpl :: DiffMatchPatch -> String -> String -> Array (T2 Int String)
 
-diff :: String -> String -> Array (Tuple Int String)
-diff a b = map xt $ diffImpl a b
+dmpDefaults :: DiffConfig
+dmpDefaults = { editCost: 4 }
+
+diff :: DiffMatchPatch -> String -> String -> Array Segment
+diff dmp a b = map (toSegment <<< xt) $ diffImpl dmp a b
+    where
+        toSegment (Tuple p s) | p > 0 = Plus s
+        toSegment (Tuple m s) | m < 0 = Minus s
+        toSegment (Tuple _ s) = Same s

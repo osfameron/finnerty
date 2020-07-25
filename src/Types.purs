@@ -15,7 +15,6 @@ data Segment
   | Minus String
 
 derive instance genericSegment :: Generic Segment _
-
 instance debugSegment :: Debug Segment where
   debug = genericDebug
 
@@ -25,7 +24,6 @@ data Line
   | Modify (Array Segment)
 
 derive instance genericLine :: Generic Line _
-
 instance debugLine :: Debug Line where
   debug = genericDebug
 
@@ -34,6 +32,5 @@ data Output
   | Focus Line  
 
 derive instance genericOutput :: Generic Output _
-
 instance debugOutput :: Debug Output where
   debug = genericDebug
