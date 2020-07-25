@@ -12,7 +12,7 @@ foreign import diffMatchPatch :: DiffConfig -> DiffMatchPatch
 foreign import diffImpl :: DiffMatchPatch -> String -> String -> Array (T2 Int String)
 
 dmpDefaults :: DiffConfig
-dmpDefaults = { editCost: 4 }
+dmpDefaults = { editCost: 6 }
 
 diff :: DiffMatchPatch -> String -> String -> Array Segment
 diff dmp a b = map (toSegment <<< xt) $ diffImpl dmp a b

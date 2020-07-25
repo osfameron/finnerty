@@ -10,6 +10,6 @@ exports.diffMatchPatch = rec => {
 exports.diffImpl = dmpObj => a => b => {
     var d = dmpObj.diff_main(a, b)
     dmpObj.diff_cleanupEfficiency(d)
-    // dmp.diff_cleanupSemantic(d)
+    // dmpObj.diff_cleanupSemantic(d)
     return d
 }
