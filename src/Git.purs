@@ -53,12 +53,17 @@ diff args =
     (toUnfoldable <<< unsafePartial fromRight <<< runParser whole)
 
 baseline :: Args -> Aff (List String)
-baseline args =
-  runCmd
-    "git"
-    [ "show"
-    , args.commit <> "^:" <> args.file]
-    (toUnfoldable <<< lines)
+baseline args = fileAt (prev args) (toUnfoldable <<< lines)
+
+prev :: Args -> Args
+prev r@{commit} = r { commit = commit <> "^" }
+
+fileAt :: forall a. Args -> (String -> a) -> Aff a
+fileAt args =
+    runCmd
+        "git"
+        [ "show"
+        , args.commit <> ":" <> args.file ]
 
 
 segment :: Parser Segment
