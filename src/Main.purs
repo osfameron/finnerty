@@ -3,10 +3,12 @@ module Main where
 import Prelude
 import Git
 import Types
+import Zipper as Z
+import DiffMatchPatch as DMP
 
 -- Basic Data
 import Data.Foldable (intercalate)
-import Data.List (List(..), (:), reverse)
+import Data.List (List(..), (:), reverse, fromFoldable)
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
@@ -16,7 +18,7 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (launchAff_, Aff)
 import Effect.Class.Console as Console
-import Data.Debug (debug, prettyPrintWith)
+import Data.Debug (debug, prettyPrintWith, prettyPrint)
 
 -- Console and Debug
 import Ansi.Codes (Color(..))
@@ -27,7 +29,7 @@ main =
   let args = {commit: "3cfa381c9d1461cf0d05cc3fb982089f9a5399cf"
              ,file: "test/Example.test" }
   in
-    launchAff_ $ mainAff args
+    launchAff_ $ mainAff2 args
 
 mainAff :: Args -> Aff Unit
 mainAff args =  do
@@ -36,6 +38,13 @@ mainAff args =  do
   let output = applyHunks b d
   void $ traverse Console.log $ formatOutput output
   Console.log $ prettyPrintWith  { maxDepth: Just 8, compactThreshold: 4 } (debug d)
+
+mainAff2 args = do
+  f1 <- fileAt (prev args) identity
+  f2 <- fileAt args identity
+  let d = DMP.diff (DMP.diffMatchPatch DMP.dmpDefaults) f1 f2
+  let z = Z.segZipper (fromFoldable d) # Z.next >>= Z.next
+  Console.log $ prettyPrintWith  { maxDepth: Just 8, compactThreshold: 4 } (debug z)
 
 formatOutput :: List Output -> List String
 formatOutput os = map formatOutput' os

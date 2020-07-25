@@ -1,6 +1,7 @@
 module Zipper where
 
 import Prelude
+import Types
 
 import Data.Traversable (scanl)
 import Data.List (List(..), (:), reverse, filter, head)
@@ -111,6 +112,25 @@ split t (Zipper (h:prv) rest z f) =
 delete :: forall a b. Zipper a b -> Zipper a b
 delete = split (const Nil)
 
+-- | # Functions operating on Zipper Segment Int
+type SegmentAcc = {old :: Int, new :: Int}
+
+zero :: Item Segment SegmentAcc
+zero = {val: Same "", acc: {old: 0, new: 0}}
+
+segInc :: Item Segment SegmentAcc -> SegmentAcc
+segInc {acc, val} =
+    let {old, new} = acc
+    in case val of
+        Plus s -> acc { new = new + S.length s }
+        Minus s -> acc { old = old + S.length s }
+        Same s ->
+            let len = S.length s
+            in {old: old + len, new: new + len}
+
+segZipper :: (List Segment) -> Zipper Segment SegmentAcc
+segZipper segments = zipper segments zero segInc
+
 -- | # Functions operating on Zipper String Int
 
 -- | For a `Zipper String Int`, split the node at the provided absolute position.
@@ -135,11 +155,11 @@ goto pos z@(Zipper (i@{acc}:_) _ _ f) =
         in t z
 
 -- | # Sample code
-zero :: Item String Int
-zero = {acc: 0, val: ""}
+zeroString :: Item String Int
+zeroString = {acc: 0, val: ""}
 
 idx :: Zipper String Int
-idx = zipper ("foo": "bar": "baz" : "qqux" : Nil) zero (\{acc, val} -> acc + S.length val)
+idx = zipper ("foo": "bar": "baz" : "qqux" : Nil) zeroString (\{acc, val} -> acc + S.length val)
 
 len4 :: forall b. Item String b -> Boolean
 len4 i = S.length i.val == 4
