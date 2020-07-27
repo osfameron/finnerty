@@ -1,7 +1,10 @@
 module Types where
 
+import Data.Eq
 import Data.List (List)
 import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
+import Data.Show
 import Data.Debug (class Debug, genericDebug)
 
 type Args = {commit :: String, file :: String}
@@ -14,9 +17,12 @@ data Segment
   | Plus String
   | Minus String
 
+derive instance eqSegment :: Eq Segment
 derive instance genericSegment :: Generic Segment _
 instance debugSegment :: Debug Segment where
   debug = genericDebug
+instance showSegment :: Show Segment where
+  show = genericShow
 
 data Line
   = Insert String

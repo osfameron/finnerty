@@ -14,6 +14,7 @@ import Effect (Effect)
 import Effect.Console as Console
 
 import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show
 import Data.Debug (class Debug, genericDebug, prettyPrintWith, debug)
 
 -- | `Item` is a pair of a Value and an Accumulator.
@@ -34,6 +35,8 @@ derive instance genericZipper :: Generic (Zipper a b) _
 instance debugZipper :: (Debug a, Debug b) => Debug (Zipper a b) where
   debug = genericDebug
 
+instance showZipper :: (Show a, Show b) => Show (Zipper a b) where
+  show (Zipper prv nxt _ _ ) = "Zipper " <> (show prv) <> "," <> (show nxt)
 -- | accessor for the crumb (current and previous items)
 _crumb :: forall a b. Zipper a b -> List (Item a b)
 _crumb (Zipper c _ _ _) = c
