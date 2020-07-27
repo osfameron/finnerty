@@ -4,8 +4,12 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Class.Console (log)
+import Test.Zipper
+
+import Jack.Runner (jackMain)
 
 main :: Effect Unit
-main = do
-  log "🍝"
-  log "You should add some tests."
+main =
+  jackMain
+    [ "Test.Zipper"
+    ]

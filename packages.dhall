@@ -144,6 +144,23 @@ let additions =
         , repo = "https://github.com/hdgarrood/purescript-debugged.git"
         , version = "master"
         }
+      , jack =
+        { dependencies =
+          [ "prelude"
+          , "foldable-traversable"
+          , "int-53"
+          , "lists"
+          , "arrays"
+          , "foreign-object"
+          , "console"
+          , "random"
+          , "strings"
+          , "generics-rep"
+          , "psci-support"
+          ]
+        , repo = "https://github.com/jacobstanley/purescript-jack.git"
+        , version = "v3.0.0"
+        }
       }
 
 in  upstream // overrides // additions
