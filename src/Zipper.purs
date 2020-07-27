@@ -119,9 +119,8 @@ zero :: Item Segment SegmentAcc
 zero = {val: Same "", acc: {old: 0, new: 0}}
 
 segInc :: Item Segment SegmentAcc -> SegmentAcc
-segInc {acc, val} =
-    let {old, new} = acc
-    in case val of
+segInc {acc: acc@{old, new}, val} =
+    case val of
         Plus s -> acc { new = new + S.length s }
         Minus s -> acc { old = old + S.length s }
         Same s ->
