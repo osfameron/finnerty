@@ -58,6 +58,9 @@ next (Zipper prv@(curr:_) (new:rest) z f) =
         prv' = (focus: prv)
     in Just $ Zipper prv' rest z f
 
+next' z = fromMaybe z (next z)
+prev' z = fromMaybe z (prev z)
+
 _iterateTill :: forall a b.
     (Zipper a b -> Maybe (Zipper a b))
     -> (Item a b -> Boolean)
