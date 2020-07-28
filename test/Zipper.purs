@@ -8,7 +8,8 @@ import Types
 
 import Jack
 import Data.Array
-import Data.List
+import Data.List ((:))
+import Data.List as L
 import Data.NonEmpty as NE
 import Data.String.CodeUnits
 
@@ -27,7 +28,13 @@ prop_roundTrip2 =
         segs' = zipper # next' # next' # prev' # unZip
     in property $ segs == segs'
 
-
+prop_delete :: Property
+prop_delete =
+    forAll (listOf1 genSegment) \segs1 ->
+    let segs = NE.fromNonEmpty (:) segs1
+        zipper = segZipper segs
+        segs' = zipper # next' # Z.delete # unZip
+    in property $ (L.length segs') == (L.length segs - 1)
 
 genZipper :: Gen (Zipper Segment SegmentAcc)
 genZipper = listOf genSegment >>= segZipper >>> pure
