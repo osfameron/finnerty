@@ -148,8 +148,8 @@ goto loc z@(Zipper (i@{acc}:_) _ _ f) =
             Right r -> Tuple r _.new
         
         t = case pos of
-            p | p >= (getPos end) -> nextTill (f >>> getPos >>> (_ > pos))
-            p | p < (getPos start) -> prevTill (_.acc >>> getPos >>> (_ <= pos))
+            p | p >= (getPos end) -> nextTill $ f >>> getPos >>> (_ > pos)
+            p | p < (getPos start) -> prevTill $ _.acc >>> getPos >>> (_ <= pos)
             otherwise -> pure
         in t z
 

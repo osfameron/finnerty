@@ -65,7 +65,6 @@ fileAt args =
         [ "show"
         , args.commit <> ":" <> args.file ]
 
-
 segment :: Parser Segment
 segment =
   segment' " " Same
