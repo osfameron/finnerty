@@ -16,6 +16,7 @@ You can edit this file as you like.
   , "string-parsers"
   , "stringutils"
   , "sunde"
+  , "test-unit"
   , "tuples-native"
   , "typelevel"
   ]
