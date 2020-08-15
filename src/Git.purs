@@ -73,7 +73,7 @@ segment =
 
 segment' :: String -> (String -> Segment) -> Parser Segment
 segment' prefix a = do
-  skipString prefix
+  skip $ string prefix
   s <- regex ".*"
   skipNL
   pure $ a s
@@ -84,23 +84,17 @@ skip = void
 skipNL :: Parser Unit
 skipNL = skip $ char '\n'
 
-skipString :: String -> Parser Unit
-skipString = skip <<< string
-
-skipRegex :: String -> Parser Unit
-skipRegex = skip <<< regex
-
 newSegment :: Parser Unit
 newSegment = skip $ string "~\n"
 
 hunkHeader :: Parser { from :: CountStart, to :: CountStart }
 hunkHeader = do
-  skipString "@@ -"
+  skip $ string "@@ -"
   f <- intpair
-  skipString " +"
+  skip $ string " +"
   t <- intpair
-  skipString " @@"
-  skipRegex ".*" -- comments
+  skip $ string " @@"
+  skip $ regex ".*" -- comments
   skipNL
   pure { from: f, to: t }
 
@@ -141,16 +135,14 @@ hunk = do
   b <- hunkBody <?> "No hunkBody"
   pure { header: h, body: b }
 
-diffHeader :: Parser Unit
-diffHeader = do
-  skipRegex "diff .*\n"
-  skipRegex "index .*\n"
-  skipRegex "--- .*\n"
-  skipRegex "[+]{3} .*\n"
-  pure unit
+skipDiffHeader :: Parser Unit
+skipDiffHeader = do
+  skip $ regex "diff .*\n"
+  skip $ regex "index .*\n"
+  skip $ regex "--- .*\n"
+  skip $ regex "[+]{3} .*\n"
 
 whole :: Parser (Array Hunk)
 whole = do
-  skip $ diffHeader
-  h <- many hunk
-  pure h
+  skipDiffHeader
+  many hunk
