@@ -10,6 +10,7 @@ You can edit this file as you like.
   , "effect"
   , "generics-rep"
   , "jack"
+  , "memoize"
   , "monad-loops"
   , "node-child-process"
   , "psci-support"

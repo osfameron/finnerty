@@ -1,12 +1,16 @@
 module LCS where
 
-import Prelude
+import Prelude (class Eq, ($), (==), (>))
 import Data.List (List(..), (:))
 import Data.List as L
 import Data.Array as A
+import Data.Function.Memoize
 
-lcs :: forall a. Eq a => Array a -> Array a -> Array a
-lcs a b = A.fromFoldable $ lcsa (L.fromFoldable a) (L.fromFoldable b)
+lcs :: forall a. Eq a => Tabulate a => Array a -> Array a -> Array a
+lcs a b = A.fromFoldable $
+            (memoize2 lcsa)
+            (L.fromFoldable a)
+            (L.fromFoldable b)
 
 lcsa :: forall a. Eq a => List a -> List a -> List a
 lcsa Nil _ = Nil
