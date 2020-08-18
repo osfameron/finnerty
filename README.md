@@ -8,7 +8,7 @@ Some code sketches on `git diff` parsing, diff-match-patch bindings etc.
 
 ## Talks
 
-* LambdaLounge August 2020 talk on [Parsing `git diff` in PureScript](https://youtu.be/93mDq9tSevQ?t=2261)
+* LambdaLounge August 2020 talk on [Parsing `git diff` in PureScript](https://youtu.be/93mDq9tSevQ?t=2254)
 
 ## Rationale
 
